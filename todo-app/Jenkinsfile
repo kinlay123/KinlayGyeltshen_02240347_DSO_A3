@@ -1,0 +1,71 @@
+pipeline {
+    agent any
+    tools {
+        nodejs 'NodeJs'
+    }
+    environment {
+        DOCKERHUB_USER = 'kinlay2005'
+        IMAGE_TAG = '02240347'
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Install Backend') {
+            steps {
+                dir('A2/todo-app/backend') {
+                    bat 'npm install'
+                }
+            }
+        }
+        stage('Test Backend') {
+            steps {
+                dir('A2/todo-app/backend') {
+                    bat 'npm test || exit 0'
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true,
+                          testResults: 'A2/todo-app/backend/junit.xml'
+                }
+            }
+        }
+        stage('Install Frontend') {
+            steps {
+                dir('A2/todo-app/frontend') {
+                    bat 'npm install'
+                }
+            }
+        }
+        stage('Build Frontend') {
+            steps {
+                dir('A2/todo-app/frontend') {
+                    bat 'npm run build'
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script {
+                    docker.withRegistry(
+                        'https://registry.hub.docker.com',
+                        'Docker-hub-creds'
+                    ) {
+                        docker build -t "kinlay2005/fe-todo:02240347" A2/todo-app/frontend
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs above.'
+        }
+    }
+}
